@@ -89,4 +89,63 @@ public class DishController {
 
         return R.success(dishDtoPage);
     }
+
+    /**
+     * 根据id查询菜品信息和对应的口味信息
+     * @param id
+     * @return
+     */
+    @GetMapping("/{id}")
+    public R<DishDto> get(@PathVariable Long id){
+        DishDto dishDto = dishService.getByIdWithFlavor(id);
+        return R.success(dishDto);
+    }
+
+    /**
+     * 修改菜品
+     * @param dishDto
+     * @return
+     */
+    @PutMapping
+    public R<String> update(@RequestBody DishDto dishDto){
+        dishService.updateWithFlavor(dishDto);
+        return R.success("修改菜品信息成功");
+    }
+
+    /**
+     * 删除菜品
+     * @param id
+     * @return
+     */
+    @DeleteMapping
+    public R<String> delete(Long id){
+        dishService.removeById(id);
+        return R.success("删除成功");
+    }
+    /**
+     * 状态变化
+     */
+//    @PostMapping("/status/{code}")
+//    public R<String> statuschange(@PathVariable Integer code, Long id){
+//
+//        return R.success("");
+//    }
+//
+
+    /**
+     * 根据条件查询对应的菜品数据
+     * @param dish
+     * @return
+     */
+    @GetMapping("/list")
+    public R<List<Dish>> list(Dish dish){
+        //构造查询条件
+        LambdaQueryWrapper<Dish> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(dish.getCategoryId() != null, Dish::getCategoryId,dish.getCategoryId());
+        queryWrapper.eq(Dish::getStatus,1);
+        //添加排序条件
+        queryWrapper.orderByAsc(Dish::getSort).orderByDesc(Dish::getUpdateTime);
+        List<Dish> list = dishService.list(queryWrapper);
+        return R.success(list);
+    }
 }
