@@ -74,6 +74,5 @@ public class SetmealServiceImpl extends ServiceImpl<SetmealMapper, Setmeal> impl
         lambdaQueryWrapper.in(SetmealDish::getSetmealId,id);
         //删除关系表中的数据
         setmealDishService.remove(lambdaQueryWrapper);
-
     }
 }
