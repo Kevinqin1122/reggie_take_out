@@ -5,21 +5,18 @@ import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.itheima.reggie.common.BaseContext;
 import com.itheima.reggie.common.CustomException;
-import com.itheima.reggie.entity.AddressBook;
-import com.itheima.reggie.entity.Orders;
-import com.itheima.reggie.entity.ShoppingCart;
-import com.itheima.reggie.entity.User;
+import com.itheima.reggie.entity.*;
 import com.itheima.reggie.mapper.OrderMapper;
-import com.itheima.reggie.service.AddressBookService;
-import com.itheima.reggie.service.OrderService;
-import com.itheima.reggie.service.ShoppingCartService;
-import com.itheima.reggie.service.UserService;
+import com.itheima.reggie.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 @Service
 public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implements OrderService {
@@ -32,10 +29,14 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
     @Autowired
     private AddressBookService addressBookService;
 
+    @Autowired
+    private OrderDetailService orderDetailService;
+
     /**
      * 用户下单
      * @param orders
      */
+    @Transactional
     public void submit(Orders orders) {
         //获得当前用户的id
         Long userId = BaseContext.getCurrentId();
@@ -59,13 +60,29 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
 
         long orderId = IdWorker.getId();//订单号
 
+        AtomicInteger amount = new AtomicInteger(0);
+
+        List<OrderDetail> orderDetails = shoppingCarts.stream().map((item)->{
+            OrderDetail orderDetail = new OrderDetail();
+            orderDetail.setOrderId(orderId);
+            orderDetail.setNumber(item.getNumber());
+            orderDetail.setDishFlavor(item.getDishFlavor());
+            orderDetail.setDishId(item.getDishId());
+            orderDetail.setSetmealId(item.getSetmealId());
+            orderDetail.setName(item.getName());
+            orderDetail.setImage(item.getImage());
+            orderDetail.setAmount(item.getAmount());
+            amount.addAndGet(item.getAmount().multiply(new BigDecimal(item.getNumber())).intValue());
+            return orderDetail;
+        }).collect(Collectors.toList());
+
         //向订单表插入数据，一条数据
         orders.setNumber(String.valueOf(orderId));
         orders.setId(orderId);
         orders.setOrderTime(LocalDateTime.now());
         orders.setCheckoutTime(LocalDateTime.now());
         orders.setStatus(2);
-//        orders.setAmount(new BigDecimal(amount.get()));
+        orders.setAmount(new BigDecimal(amount.get()));
         orders.setUserId(userId);
         orders.setUserName(user.getName());
         orders.setConsignee(addressBook.getConsignee());
@@ -77,9 +94,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
 
         this.save(orders);
         //向订单明细表插入数据，多条数据
-
+        orderDetailService.saveBatch(orderDetails);
         //下单完成之后，需要清空购物车数据
-
-
+        shoppingCartService.remove(Wrapper);
     }
 }
